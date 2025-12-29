@@ -12,7 +12,6 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV DATABASE_PATH=/data/notify.sqlite
 ENV CONFIG_DB_PATH=/data/notify-config.sqlite
-ENV KEYS_DIR=/data/keys
 ENV REQUIRE_AUTH=false
 ENV REQUIRE_HTTPS=false
 ENV REQUIRE_HMAC=true
@@ -34,8 +33,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN mkdir -p /data/keys \
-  && chown -R node:node /app /data
+RUN chown -R node:node /app
 
 USER node
 EXPOSE 3000

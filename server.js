@@ -1,4 +1,3 @@
-import fs from 'fs';
 import express from 'express';
 import { setMaxListeners } from 'events';
 
@@ -71,11 +70,8 @@ async function start() {
   const config = loadConfig();
   const configStore = new ConfigStore({
     databasePath: config.configDbPath,
-    keysDir: config.keysDir,
   });
   await configStore.init();
-
-  await fs.promises.mkdir(config.keysDir, { recursive: true });
 
   const adminSettings = await configStore.ensureAdminSettings({
     adminBasePath: config.adminBasePath,
@@ -127,7 +123,6 @@ async function start() {
   app.use(adminSettings.adminPath, createAdminRouter({
     store: configStore,
     sessionSecret: adminSettings.sessionSecret,
-    keysDir: config.keysDir,
   }));
 
   app.get('/health', (req, res) => {

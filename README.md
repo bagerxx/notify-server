@@ -39,11 +39,9 @@ Docker
 docker run -d --name notify-server \
   -p 3000:3000 \
   --env-file /path/to/.env \
-  -v /path/notify-data:/app/data \
+  -v /path/notify-data:/data \
   your-dockerhub-user/notify-server:latest
 ```
-
-🔹 Anahtar taşıyorsan `-v /app/keys` bağlaman yeterli.
 
 ---
 
@@ -61,7 +59,6 @@ Veriler SQLite içinde saklanır ve yeniden başlatmada korunur.
 | `ADMIN_BOOTSTRAP_PASSWORD` | İlk admin şifresi |
 | `ADMIN_SESSION_SECRET` | Session imza anahtarı |
 | `CONFIG_DB_PATH` | Config database yolu (default: `./data/notify-config.sqlite`) |
-| `KEYS_DIR` | APNs/FCM key dosyaları dizini (default: `./keys`) |
 
 ---
 
@@ -73,6 +70,8 @@ SQLite iki dosya halinde kullanılır:
 |---|---|
 | HMAC nonce verisi | `./data/notify.sqlite` |
 | Admin/config verisi | `./data/notify-config.sqlite` |
+
+Docker imajında varsayılan yollar `/data/notify.sqlite` ve `/data/notify-config.sqlite`.
 
 ---
 
@@ -87,7 +86,7 @@ chmod 700 ./data
 chmod 600 ./data/notify.sqlite ./data/notify-config.sqlite
 ```
 
-Docker kullanıyorsan `data/` dizinini özel bir volume içine bağla.
+Docker kullanıyorsan `/data` dizinini özel bir volume içine bağla.
 
 Gerekirse disk şifreleme kullan.
 

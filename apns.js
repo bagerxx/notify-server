@@ -1,5 +1,4 @@
 import apn from 'apn';
-import fs from 'fs';
 
 const providers = new Map();
 const APNS_BATCH_SIZE = 1000;
@@ -21,9 +20,10 @@ function getApnsProvider(appConfig) {
     return existing;
   }
 
-  const key = isInlineApnsKey(appConfig.ios.keyPath)
-    ? Buffer.from(appConfig.ios.keyPath, 'utf8')
-    : fs.readFileSync(appConfig.ios.keyPath);
+  if (!isInlineApnsKey(appConfig.ios.keyPath)) {
+    throw new Error('APNs key must be provided inline');
+  }
+  const key = Buffer.from(appConfig.ios.keyPath, 'utf8');
   const provider = new apn.Provider({
     token: {
       key,

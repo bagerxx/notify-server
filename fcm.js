@@ -1,5 +1,4 @@
 import admin from 'firebase-admin';
-import fs from 'fs';
 
 const messagingCache = new Map();
 const FCM_BATCH_SIZE = 500;
@@ -28,10 +27,10 @@ function getMessaging(appConfig) {
     return messaging;
   }
 
-  const serviceAccountRaw = isInlineServiceAccount(appConfig.android.serviceAccountPath)
-    ? appConfig.android.serviceAccountPath
-    : fs.readFileSync(appConfig.android.serviceAccountPath, 'utf8');
-  const serviceAccount = JSON.parse(serviceAccountRaw);
+  if (!isInlineServiceAccount(appConfig.android.serviceAccountPath)) {
+    throw new Error('FCM service account must be provided inline');
+  }
+  const serviceAccount = JSON.parse(appConfig.android.serviceAccountPath);
   const app = admin.initializeApp(
     {
       credential: admin.credential.cert(serviceAccount),
