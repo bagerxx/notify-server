@@ -21,10 +21,40 @@ npm start
 
 3) Konsoldan admin path ve (varsa) olusan admin sifresini al.
 
+## Docker
+
+Docker image URL (daha sonra guncelle):
+
+```
+DOCKER_IMAGE=your-dockerhub-user/notify-server:latest
+```
+
+Build ve push:
+
+```sh
+docker build -t your-dockerhub-user/notify-server:latest .
+docker login
+docker push your-dockerhub-user/notify-server:latest
+```
+
+Calistir (env ve volume ile):
+
+```sh
+docker run -d --name notify-server \
+  -p 3000:3000 \
+  --env-file /path/to/.env \
+  -v /path/notify-data:/app/data \
+  your-dockerhub-user/notify-server:latest
+```
+
+Not: Eski kurulumlardan dosya tabanli key tasiyacaksan,
+`/app/keys` icin volume baglayip admin panelinden bir kez kaydetmen yeterli.
+
 ## Admin Panel
 
 Admin paneli uygulama tanimlari ve APNs/FCM anahtarlarini yonetir. Ayarlar
-SQLite'da saklanir ve yeniden baslatmada korunur.
+SQLite'da saklanir ve yeniden baslatmada korunur. APNs/FCM anahtar icerikleri
+config veritabaninda tutulur; diskte dosya olarak saklanmaz.
 
 Ortam degiskenleri (opsiyonel):
 - `ADMIN_BASE_PATH`: Admin URL path (bossa rastgele uretilir).
@@ -39,6 +69,21 @@ Ortam degiskenleri (opsiyonel):
 SQLite iki amac icin kullanilir:
 - HMAC nonce verisi: `./data/notify.sqlite` (DATABASE_PATH ile degistirilebilir)
 - Admin/config verisi: `./data/notify-config.sqlite` (CONFIG_DB_PATH ile degistirilebilir)
+
+## Guvenlik Onerileri
+
+Bu proje tek sunucu/tek musteri kurulumu icin tasarlandi; varsayilan SQLite yeterlidir.
+
+- `notify-config.sqlite` icinde app secret ve APNs/FCM anahtar icerikleri bulunur; dosyayi disariya acma.
+- `data/` dizinini sadece uygulama kullanicisi okuyabilsin (Linux/macOS):
+
+```sh
+chmod 700 ./data
+chmod 600 ./data/notify.sqlite ./data/notify-config.sqlite
+```
+
+- Docker kullanirken `data/` volume'unu host'ta ozel bir dizine bagla ve erisimi sinirla.
+- Paylasimli ortamda disk/volume encryption dusun.
 
 ## Kimlik Doğrulama
 

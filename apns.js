@@ -4,6 +4,13 @@ import fs from 'fs';
 const providers = new Map();
 const APNS_BATCH_SIZE = 1000;
 
+function isInlineApnsKey(value) {
+  if (!value || typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return trimmed.includes('BEGIN PRIVATE KEY') || trimmed.includes('BEGIN EC PRIVATE KEY');
+}
+
 function getApnsProvider(appConfig) {
   if (!appConfig.ios) {
     return null;
@@ -14,7 +21,9 @@ function getApnsProvider(appConfig) {
     return existing;
   }
 
-  const key = fs.readFileSync(appConfig.ios.keyPath);
+  const key = isInlineApnsKey(appConfig.ios.keyPath)
+    ? Buffer.from(appConfig.ios.keyPath, 'utf8')
+    : fs.readFileSync(appConfig.ios.keyPath);
   const provider = new apn.Provider({
     token: {
       key,

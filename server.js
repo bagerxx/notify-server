@@ -77,7 +77,10 @@ function assertPlatformConfigured(appConfig, platform) {
 
 async function start() {
   const config = loadConfig();
-  const configStore = new ConfigStore(config.configDbPath);
+  const configStore = new ConfigStore({
+    databasePath: config.configDbPath,
+    keysDir: config.keysDir,
+  });
   await configStore.init();
 
   await fs.promises.mkdir(config.keysDir, { recursive: true });

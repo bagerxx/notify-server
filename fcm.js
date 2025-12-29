@@ -4,6 +4,13 @@ import fs from 'fs';
 const messagingCache = new Map();
 const FCM_BATCH_SIZE = 500;
 
+function isInlineServiceAccount(value) {
+  if (!value || typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return trimmed.startsWith('{');
+}
+
 function getMessaging(appConfig) {
   if (!appConfig.android) {
     return null;
@@ -21,7 +28,9 @@ function getMessaging(appConfig) {
     return messaging;
   }
 
-  const serviceAccountRaw = fs.readFileSync(appConfig.android.serviceAccountPath, 'utf8');
+  const serviceAccountRaw = isInlineServiceAccount(appConfig.android.serviceAccountPath)
+    ? appConfig.android.serviceAccountPath
+    : fs.readFileSync(appConfig.android.serviceAccountPath, 'utf8');
   const serviceAccount = JSON.parse(serviceAccountRaw);
   const app = admin.initializeApp(
     {
