@@ -29,16 +29,9 @@ Başladıktan sonra konsolda **admin panel path** ve **ilk admin şifresi** gör
 Docker imajı:
 
 ```
-DOCKER_IMAGE=your-dockerhub-user/notify-server:latest
+DOCKER_IMAGE=bagerxx/notify-server:latest
 ```
-
-### Build & Push
-
-```bash
-docker build -t your-dockerhub-user/notify-server:latest .
-docker login
-docker push your-dockerhub-user/notify-server:latest
-```
+Docker 
 
 ### Çalıştırma (env + volume ile)
 
