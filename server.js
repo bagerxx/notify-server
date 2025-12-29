@@ -1,8 +1,5 @@
 import fs from 'fs';
-import path from 'path';
-import dotenv from 'dotenv';
 import express from 'express';
-import { fileURLToPath } from 'url';
 import { setMaxListeners } from 'events';
 
 import { loadConfig } from './lib/config.js';
@@ -19,13 +16,8 @@ import { sendFcm } from './fcm.js';
 import { ConfigStore } from './lib/config-store.js';
 import { createAdminRouter } from './lib/admin.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 // Reduce apn/http2 listener warnings during burst sends.
 setMaxListeners(30);
-
-dotenv.config({ path: process.env.ENV_PATH || path.join(__dirname, '.env.local') });
-dotenv.config({ path: path.join(__dirname, '.env') });
 
 function asyncHandler(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
