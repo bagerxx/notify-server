@@ -1,3 +1,4 @@
+import os from 'os';
 import express from 'express';
 import { setMaxListeners } from 'events';
 
@@ -14,6 +15,7 @@ import { sendApns, shutdownApnsProviders } from './apns.js';
 import { sendFcm } from './fcm.js';
 import { ConfigStore } from './lib/config-store.js';
 import { createAdminRouter } from './lib/admin.js';
+import { COLORS, colorize } from './lib/console-colors.js';
 
 // Reduce apn/http2 listener warnings during burst sends.
 setMaxListeners(30);
@@ -66,6 +68,76 @@ function assertPlatformConfigured(appConfig, platform) {
   }
 }
 
+function formatToggle(value) {
+  return value ? colorize('on', COLORS.green) : colorize('off', COLORS.red);
+}
+
+function formatList(values) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return colorize('none', COLORS.gray);
+  }
+  return values.join(', ');
+}
+
+function getNetworkAddresses() {
+  const interfaces = os.networkInterfaces();
+  const addresses = new Set();
+
+  for (const entries of Object.values(interfaces)) {
+    if (!entries) continue;
+    for (const entry of entries) {
+      if (entry.family !== 'IPv4') continue;
+      if (entry.internal) continue;
+      addresses.add(entry.address);
+    }
+  }
+
+  return Array.from(addresses);
+}
+
+function formatUrls(addresses, port, suffix = '') {
+  if (!addresses || addresses.length === 0) {
+    return `http://0.0.0.0:${port}${suffix}`;
+  }
+  return addresses.map((address) => `http://${address}:${port}${suffix}`).join(', ');
+}
+
+function logInfo(message) {
+  console.log(`${colorize('INFO', COLORS.green)} ${message}`);
+}
+
+function logWarn(message) {
+  console.warn(`${colorize('WARN', COLORS.yellow)} ${message}`);
+}
+
+function logError(message, error) {
+  if (error) {
+    console.error(`${colorize('ERROR', COLORS.red)} ${message}`, error);
+    return;
+  }
+  console.error(`${colorize('ERROR', COLORS.red)} ${message}`);
+}
+
+function logStartup(config, adminSettings) {
+  const addresses = getNetworkAddresses();
+  const divider = colorize('========================================', COLORS.gray);
+  const label = (text) => colorize(text, COLORS.cyan);
+  const value = (text) => colorize(text, COLORS.green);
+  const lines = [
+    '',
+    divider,
+    colorize(' Notify Server Ready', COLORS.green),
+    divider,
+    `${label('Listening')}: ${value(formatUrls(addresses, config.port))}`,
+    `${label('Admin UI')}: ${value(formatUrls(addresses, config.port, adminSettings.adminPath))}`,
+    `${label('Auth')}: ${formatToggle(config.requireAuth)} | ${label('HMAC')}: ${formatToggle(config.requireHmac)}`,
+    `${label('HTTPS')}: ${formatToggle(config.requireHttps)} | ${label('Trust proxy')}: ${formatToggle(config.trustProxy)}`,
+    `${label('IP allowlist')}: ${formatToggle(config.ipAllowlistEnabled)} (${formatList(config.allowedIps)})`,
+    `${label('Rate limit')}: ${config.rateLimitMax} / ${(config.rateLimitWindowMs / 1000).toFixed(0)}s`,
+  ];
+  console.log(lines.join('\n'));
+}
+
 async function start() {
   const config = loadConfig();
   const configStore = new ConfigStore({
@@ -78,10 +150,10 @@ async function start() {
     adminSessionSecret: config.adminSessionSecret,
   });
   if (adminSettings.adminPathGenerated) {
-    console.log(`Admin path generated: ${adminSettings.adminPath}`);
+    logInfo(`Admin path generated: ${adminSettings.adminPath}`);
   }
   if (adminSettings.weakAdminPath) {
-    console.warn('Admin path looks predictable. Set ADMIN_BASE_PATH to a stronger value.');
+    logWarn('Admin path looks predictable. Set ADMIN_BASE_PATH to a stronger value.');
   }
 
   const adminUser = await configStore.ensureAdminUser({
@@ -89,9 +161,9 @@ async function start() {
     password: config.adminBootstrapPassword,
   });
   if (adminUser.created) {
-    console.log(`Admin user created: ${adminUser.username}`);
+    logInfo(`Admin user created: ${adminUser.username}`);
     if (adminUser.generatedPassword) {
-      console.log(`Admin password generated: ${adminUser.password}`);
+      logInfo(`Admin password generated: ${adminUser.password}`);
     }
   }
 
@@ -203,23 +275,28 @@ async function start() {
       });
     }
 
-    console.error('Unhandled error', err);
+    logError('Unhandled error', err);
     return res.status(500).json({ ok: false, error: { message: 'Internal server error' } });
   });
 
   const server = app.listen(config.port, () => {
-    console.log(`Notify server listening on port ${config.port}`);
+    logStartup(config, adminSettings);
   });
 
+  let shuttingDown = false;
   const shutdown = () => {
-    console.log('Shutting down');
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+    logInfo('Shutting down');
     shutdownApnsProviders();
     server.close(async () => {
       try {
         await configStore.close();
         await nonceStore.close();
       } catch (error) {
-        console.error('Failed to close nonce store', error);
+        logError('Failed to close nonce store', error);
       }
       process.exit(0);
     });
@@ -230,6 +307,6 @@ async function start() {
 }
 
 start().catch((error) => {
-  console.error('Failed to start server', error);
+  logError('Failed to start server', error);
   process.exit(1);
 });
