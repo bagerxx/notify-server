@@ -16,6 +16,7 @@ import { sendFcm } from './fcm.js';
 import { ConfigStore } from './lib/config-store.js';
 import { createAdminRouter } from './lib/admin.js';
 import { COLORS, colorize } from './lib/console-colors.js';
+import { prisma } from './lib/prisma.js';
 
 // Reduce apn/http2 listener warnings during burst sends.
 setMaxListeners(30);
@@ -140,8 +141,13 @@ function logStartup(config, adminSettings) {
 
 async function start() {
   const config = loadConfig();
+  if (!config.databaseUrl) {
+    logError('DATABASE_URL is required');
+    process.exit(1);
+  }
+
   const configStore = new ConfigStore({
-    databasePath: config.configDbPath,
+    prisma,
   });
   await configStore.init();
 
@@ -167,7 +173,7 @@ async function start() {
     }
   }
 
-  const nonceStore = new NonceStore(config.databasePath);
+  const nonceStore = new NonceStore(prisma);
   await nonceStore.init();
 
   const app = express();
@@ -295,6 +301,7 @@ async function start() {
       try {
         await configStore.close();
         await nonceStore.close();
+        await prisma.$disconnect();
       } catch (error) {
         logError('Failed to close nonce store', error);
       }

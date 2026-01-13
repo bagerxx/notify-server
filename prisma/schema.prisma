@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminSetting {
+  key   String @id @map("key")
+  value String @map("value")
+
+  @@map("admin_settings")
+}
+
+model AdminUser {
+  id           Int      @id @default(autoincrement()) @map("id")
+  username     String   @unique @map("username")
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @map("created_at")
+  updatedAt    DateTime @map("updated_at")
+
+  @@map("admin_users")
+}
+
+model App {
+  appId       String     @id @map("app_id")
+  displayName String     @map("display_name")
+  apiSecret   String     @map("api_secret")
+  enabled     Boolean    @default(true) @map("enabled")
+  createdAt   DateTime   @map("created_at")
+  updatedAt   DateTime   @map("updated_at")
+  ios         AppIos?
+  android     AppAndroid?
+
+  @@map("apps")
+}
+
+model AppIos {
+  appId      String   @id @map("app_id")
+  bundleId   String   @map("bundle_id")
+  teamId     String   @map("team_id")
+  keyId      String   @map("key_id")
+  keyPath    String   @map("key_path")
+  production Boolean  @default(false) @map("production")
+  createdAt  DateTime @map("created_at")
+  updatedAt  DateTime @map("updated_at")
+  app        App      @relation(fields: [appId], references: [appId], onDelete: Cascade)
+
+  @@map("app_ios")
+}
+
+model AppAndroid {
+  appId              String   @id @map("app_id")
+  serviceAccountPath String   @map("service_account_path")
+  createdAt          DateTime @map("created_at")
+  updatedAt          DateTime @map("updated_at")
+  app                App      @relation(fields: [appId], references: [appId], onDelete: Cascade)
+
+  @@map("app_android")
+}
+
+model Nonce {
+  appId     String   @map("app_id")
+  nonce     String
+  createdAt DateTime @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@id([appId, nonce])
+  @@index([expiresAt])
+  @@map("nonces")
+}

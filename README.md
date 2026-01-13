@@ -9,6 +9,7 @@ APNs (iOS) ve FCM (Android) için çoklu uygulama destekli **bildirim geçidi**.
 
 ```env
 PORT=3001
+DATABASE_URL=postgresql://user:pass@host:5432/notify?schema=public
 REQUIRE_HMAC=true
 REQUIRE_AUTH=false
 REQUIRE_HTTPS=false
@@ -33,13 +34,12 @@ DOCKER_IMAGE=bagerxx/notify-server:latest
 ```
 Docker 
 
-### Çalıştırma (env + volume ile)
+### Çalıştırma (env ile)
 
 ```bash
 docker run -d --name notify-server \
   -p 3000:3000 \
   --env-file /path/to/.env \
-  -v /path/notify-data:/data \
   your-dockerhub-user/notify-server:latest
 ```
 
@@ -48,7 +48,7 @@ docker run -d --name notify-server \
 ## 🔧 Admin Panel
 
 APNs/FCM anahtarları ve uygulamalar tek yerden yönetilir.  
-Veriler SQLite içinde saklanır ve yeniden başlatmada korunur.
+Veriler PostgreSQL içinde saklanır ve yeniden başlatmada korunur.
 
 **Ortam değişkenleri (opsiyonel):**
 
@@ -58,37 +58,24 @@ Veriler SQLite içinde saklanır ve yeniden başlatmada korunur.
 | `ADMIN_BOOTSTRAP_USER` | İlk admin kullanıcı adı |
 | `ADMIN_BOOTSTRAP_PASSWORD` | İlk admin şifresi |
 | `ADMIN_SESSION_SECRET` | Session imza anahtarı |
-| `CONFIG_DB_PATH` | Config database yolu (default: `./data/notify-config.sqlite`) |
 
 ---
 
 ## 🗄 Veritabanı
 
-SQLite iki dosya halinde kullanılır:
+PostgreSQL + Prisma kullanılır. Tek bir veritabanı yeterlidir.
 
-| Amaç | Varsayılan |
-|---|---|
-| HMAC nonce verisi | `./data/notify.sqlite` |
-| Admin/config verisi | `./data/notify-config.sqlite` |
+```env
+DATABASE_URL=postgresql://user:pass@host:5432/notify?schema=public
+```
 
-Docker imajında varsayılan yollar `/data/notify.sqlite` ve `/data/notify-config.sqlite`.
+Migrations `npm start` ile otomatik uygulanır.
 
 ---
 
 ## 🔐 Güvenlik Önerileri
 
-⚠ Veritabanında API secret ve key bilgileri bulunur. Host erişimini kısıtla.
-
-Linux/macOS önerilen izin:
-
-```bash
-chmod 700 ./data
-chmod 600 ./data/notify.sqlite ./data/notify-config.sqlite
-```
-
-Docker kullanıyorsan `/data` dizinini özel bir volume içine bağla.
-
-Gerekirse disk şifreleme kullan.
+⚠ Veritabanında API secret ve key bilgileri bulunur. Erişimi kısıtla ve güvenli bağlantı kullan.
 
 ---
 

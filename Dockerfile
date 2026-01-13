@@ -9,9 +9,8 @@ RUN apt-get update \
 
 FROM node:20-bullseye-slim
 ENV NODE_ENV=production
-ENV PORT=3000
-ENV DATABASE_PATH=/data/notify.sqlite
-ENV CONFIG_DB_PATH=/data/notify-config.sqlite
+ENV PORT=3001
+ENV DATABASE_URL=
 ENV REQUIRE_AUTH=false
 ENV REQUIRE_HTTPS=false
 ENV REQUIRE_HMAC=true
