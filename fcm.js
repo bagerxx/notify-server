@@ -43,6 +43,18 @@ function getMessaging(appConfig) {
   return messaging;
 }
 
+async function invalidateFcmMessaging(appId) {
+  if (!appId) return;
+  messagingCache.delete(appId);
+  const existingApp = admin.apps.find((app) => app.name === appId);
+  if (!existingApp) return;
+  try {
+    await existingApp.delete();
+  } catch (error) {
+    // ignore delete errors
+  }
+}
+
 function buildMessage(payload, tokens) {
   const message = { tokens };
 
@@ -137,4 +149,5 @@ async function sendFcm(appConfig, deviceTokens, payload) {
 
 export {
   sendFcm,
+  invalidateFcmMessaging,
 };

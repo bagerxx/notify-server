@@ -37,6 +37,18 @@ function getApnsProvider(appConfig) {
   return provider;
 }
 
+function invalidateApnsProvider(appId) {
+  if (!appId) return;
+  const provider = providers.get(appId);
+  if (!provider) return;
+  try {
+    provider.shutdown();
+  } catch (error) {
+    // ignore shutdown errors
+  }
+  providers.delete(appId);
+}
+
 function buildNotification(payload, appConfig) {
   const note = new apn.Notification();
   const hasAlert = Boolean(payload.notification && (payload.notification.title || payload.notification.body));
@@ -161,4 +173,5 @@ function shutdownApnsProviders() {
 export {
   sendApns,
   shutdownApnsProviders,
+  invalidateApnsProvider,
 };
