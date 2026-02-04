@@ -1,6 +1,5 @@
 import os from 'os';
 import express from 'express';
-import { setMaxListeners } from 'events';
 
 import { loadConfig } from './lib/config.js';
 import { NonceStore } from './lib/nonce-store.js';
@@ -18,8 +17,6 @@ import { createAdminRouter } from './lib/admin.js';
 import { COLORS, colorize } from './lib/console-colors.js';
 import { prisma } from './lib/prisma.js';
 
-// Reduce apn/http2 listener warnings during burst sends.
-setMaxListeners(30);
 
 function asyncHandler(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);

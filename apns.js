@@ -1,7 +1,99 @@
 import apn from 'apn';
 
 const providers = new Map();
+const apnsMetricsIntervals = new Map();
 const APNS_BATCH_SIZE = 1000;
+// Default to a higher per-connection listener cap to avoid http2 "wakeup" warnings during bursts.
+const DEFAULT_APNS_MAX_LISTENERS = 75;
+const DEFAULT_APNS_METRICS_INTERVAL_MS = 60_000;
+
+function resolveApnsMaxListeners() {
+  if (!process.env.APNS_MAX_LISTENERS) {
+    return DEFAULT_APNS_MAX_LISTENERS;
+  }
+  const parsed = Number.parseInt(process.env.APNS_MAX_LISTENERS, 10);
+  return Number.isNaN(parsed) ? DEFAULT_APNS_MAX_LISTENERS : parsed;
+}
+
+function configureApnsListenerLimits(provider) {
+  const endpointManager = provider?.client?.endpointManager;
+  if (!endpointManager || endpointManager._listenerLimitConfigured) {
+    return;
+  }
+
+  const maxListeners = resolveApnsMaxListeners();
+  const originalCreateEndpoint = endpointManager.createEndpoint.bind(endpointManager);
+
+  endpointManager.createEndpoint = function createEndpointWithListenerLimit() {
+    originalCreateEndpoint();
+    const endpoint = this._currentConnection;
+    if (!endpoint) {
+      return;
+    }
+
+    const applyLimit = () => {
+      if (endpoint._connection && typeof endpoint._connection.setMaxListeners === 'function') {
+        endpoint._connection.setMaxListeners(maxListeners);
+      }
+    };
+
+    applyLimit();
+    endpoint.once('connect', applyLimit);
+  };
+
+  endpointManager._listenerLimitConfigured = true;
+}
+
+function resolveApnsMetricsInterval() {
+  if (!process.env.APNS_LISTENER_METRICS_INTERVAL_MS) {
+    return DEFAULT_APNS_METRICS_INTERVAL_MS;
+  }
+  const parsed = Number.parseInt(process.env.APNS_LISTENER_METRICS_INTERVAL_MS, 10);
+  return Number.isNaN(parsed) ? DEFAULT_APNS_METRICS_INTERVAL_MS : parsed;
+}
+
+function startApnsListenerMetrics(provider, appId) {
+  if (process.env.APNS_LISTENER_METRICS !== 'true') {
+    return;
+  }
+  if (apnsMetricsIntervals.has(appId)) {
+    return;
+  }
+  const endpointManager = provider?.client?.endpointManager;
+  if (!endpointManager) {
+    return;
+  }
+  const intervalMs = resolveApnsMetricsInterval();
+  const intervalId = setInterval(() => {
+    const endpoints = Array.isArray(endpointManager._endpoints) ? endpointManager._endpoints : [];
+    const metrics = endpoints.map((endpoint) => {
+      const connection = endpoint?._connection;
+      if (!connection || typeof connection.listenerCount !== 'function') {
+        return null;
+      }
+      return {
+        wakeup: connection.listenerCount('wakeup'),
+        error: connection.listenerCount('error'),
+        goaway: connection.listenerCount('GOAWAY'),
+      };
+    }).filter(Boolean);
+    console.info('[APNS] listener metrics', {
+      appId,
+      endpoints: endpoints.length,
+      metrics,
+    });
+  }, intervalMs);
+  apnsMetricsIntervals.set(appId, intervalId);
+}
+
+function stopApnsListenerMetrics(appId) {
+  const intervalId = apnsMetricsIntervals.get(appId);
+  if (!intervalId) {
+    return;
+  }
+  clearInterval(intervalId);
+  apnsMetricsIntervals.delete(appId);
+}
 
 function isInlineApnsKey(value) {
   if (!value || typeof value !== 'string') return false;
@@ -32,6 +124,8 @@ function getApnsProvider(appConfig) {
     },
     production: appConfig.ios.production,
   });
+  configureApnsListenerLimits(provider);
+  startApnsListenerMetrics(provider, appConfig.appId);
 
   providers.set(appConfig.appId, provider);
   return provider;
@@ -47,6 +141,7 @@ function invalidateApnsProvider(appId) {
     // ignore shutdown errors
   }
   providers.delete(appId);
+  stopApnsListenerMetrics(appId);
 }
 
 function buildNotification(payload, appConfig) {
@@ -168,6 +263,10 @@ function shutdownApnsProviders() {
     }
   }
   providers.clear();
+  for (const intervalId of apnsMetricsIntervals.values()) {
+    clearInterval(intervalId);
+  }
+  apnsMetricsIntervals.clear();
 }
 
 export {
