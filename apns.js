@@ -1,7 +1,8 @@
 import apn from 'apn';
 
 const providers = new Map();
-const APNS_BATCH_SIZE = 1000;
+const APNS_BATCH_SIZE = 200;
+const MAX_APNS_ERROR_DETAILS = 50;
 
 function isInlineApnsKey(value) {
   if (!value || typeof value !== 'string') return false;
@@ -122,6 +123,12 @@ function isInvalidApnsFailure(failure) {
   return false;
 }
 
+function maskToken(token) {
+  if (!token || typeof token !== 'string') return '';
+  if (token.length <= 10) return token;
+  return `${token.slice(0, 4)}...${token.slice(-4)}`;
+}
+
 async function sendApns(appConfig, deviceTokens, payload) {
   if (!appConfig.ios) {
     throw new Error(`APNs not configured for app ${appConfig.appId}`);
@@ -139,6 +146,7 @@ async function sendApns(appConfig, deviceTokens, payload) {
   let sent = 0;
   let failed = 0;
   const invalidTokens = [];
+  const errors = [];
 
   for (const batch of batches) {
     const result = await provider.send(note, batch);
@@ -149,6 +157,14 @@ async function sendApns(appConfig, deviceTokens, payload) {
       if (isInvalidApnsFailure(failure)) {
         invalidTokens.push(failure.device);
       }
+      if (errors.length < MAX_APNS_ERROR_DETAILS) {
+        errors.push({
+          device: maskToken(failure.device),
+          status: failure.status,
+          reason: failure.response && failure.response.reason ? failure.response.reason : null,
+          error: failure.error ? String(failure.error) : null,
+        });
+      }
     }
   }
 
@@ -156,6 +172,7 @@ async function sendApns(appConfig, deviceTokens, payload) {
     sent,
     failed,
     invalidTokens,
+    errors,
   };
 }
 

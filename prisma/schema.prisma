@@ -71,3 +71,27 @@ model Nonce {
   @@index([expiresAt])
   @@map("nonces")
 }
+
+model NotifyLog {
+  id         Int      @id @default(autoincrement()) @map("id")
+  createdAt  DateTime @map("created_at")
+  appId      String?  @map("app_id")
+  platform   String?  @map("platform")
+  tokensCount Int?    @map("tokens_count")
+  title      String?  @map("title")
+  body       String?  @map("body")
+  data       Json?    @map("data")
+  requestId  String?  @map("request_id")
+  clientIp   String?  @map("client_ip")
+  userAgent  String?  @map("user_agent")
+  clientName String?  @map("client_name")
+  status     Int      @map("status")
+  success    Boolean  @map("success")
+  durationMs Int?     @map("duration_ms")
+  result     Json?    @map("result")
+  error      String?  @map("error")
+
+  @@index([createdAt])
+  @@index([appId])
+  @@map("notify_logs")
+}

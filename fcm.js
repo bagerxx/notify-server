@@ -2,6 +2,7 @@ import admin from 'firebase-admin';
 
 const messagingCache = new Map();
 const FCM_BATCH_SIZE = 500;
+const MAX_FCM_ERROR_DETAILS = 50;
 
 function isInlineServiceAccount(value) {
   if (!value || typeof value !== 'string') return false;
@@ -109,6 +110,12 @@ function isInvalidFcmError(error) {
   ].includes(error.code);
 }
 
+function maskToken(token) {
+  if (!token || typeof token !== 'string') return '';
+  if (token.length <= 10) return token;
+  return `${token.slice(0, 4)}...${token.slice(-4)}`;
+}
+
 async function sendFcm(appConfig, deviceTokens, payload) {
   if (!appConfig.android) {
     throw new Error(`FCM not configured for app ${appConfig.appId}`);
@@ -125,6 +132,7 @@ async function sendFcm(appConfig, deviceTokens, payload) {
   let sent = 0;
   let failed = 0;
   const invalidTokens = [];
+  const errors = [];
 
   for (const batch of batches) {
     const message = buildMessage(payload, batch);
@@ -134,8 +142,17 @@ async function sendFcm(appConfig, deviceTokens, payload) {
     failed += response.failureCount;
 
     response.responses.forEach((resp, index) => {
-      if (!resp.success && isInvalidFcmError(resp.error)) {
-        invalidTokens.push(batch[index]);
+      if (!resp.success) {
+        if (isInvalidFcmError(resp.error)) {
+          invalidTokens.push(batch[index]);
+        }
+        if (errors.length < MAX_FCM_ERROR_DETAILS) {
+          errors.push({
+            token: maskToken(batch[index]),
+            code: resp.error && resp.error.code ? resp.error.code : null,
+            message: resp.error && resp.error.message ? resp.error.message : null,
+          });
+        }
       }
     });
   }
@@ -144,6 +161,7 @@ async function sendFcm(appConfig, deviceTokens, payload) {
     sent,
     failed,
     invalidTokens,
+    errors,
   };
 }
 
