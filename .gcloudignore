@@ -1,0 +1,9 @@
+node_modules/
+.git/
+.env
+.env.local
+.env.*.local
+.env.example
+.DS_Store
+env.yaml
+Makefile

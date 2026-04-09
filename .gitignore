@@ -6,3 +6,5 @@ data/*.sqlite
 data/*.db
 keys/
 *.log
+Dockerfile
+env.yaml

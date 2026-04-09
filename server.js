@@ -1,7 +1,6 @@
 import os from 'os';
 import { randomUUID } from 'crypto';
 import express from 'express';
-import { setMaxListeners } from 'events';
 
 import { loadConfig } from './lib/config.js';
 import { NonceStore } from './lib/nonce-store.js';
@@ -18,9 +17,6 @@ import { ConfigStore } from './lib/config-store.js';
 import { createAdminRouter } from './lib/admin.js';
 import { COLORS, colorize } from './lib/console-colors.js';
 import { prisma } from './lib/prisma.js';
-
-// Reduce apn/http2 listener warnings during burst sends.
-setMaxListeners(200);
 
 function asyncHandler(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -270,9 +266,29 @@ async function start() {
     sessionSecret: adminSettings.sessionSecret,
   }));
 
-  app.get('/health', (req, res) => {
-    res.json({ ok: true });
-  });
+  app.get('/health', asyncHandler(async (req, res) => {
+    const wakeupToken = getHeaderValue(req, 'x-wakeup-token');
+    if (config.wakeupToken && wakeupToken !== config.wakeupToken) {
+      return res.status(401).json({ ok: false, error: { message: 'Invalid wakeup token' } });
+    }
+
+    const checks = { db: false };
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      checks.db = true;
+    } catch {
+      checks.db = false;
+    }
+
+    const healthy = checks.db;
+    const status = healthy ? 200 : 503;
+
+    res.status(status).json({
+      ok: healthy,
+      uptime: Math.floor(process.uptime()),
+      checks,
+    });
+  }));
 
   const auth = createAuthMiddleware(configStore, config);
   const hmac = createHmacMiddleware(configStore, config, nonceStore);
